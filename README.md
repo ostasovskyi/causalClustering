@@ -37,7 +37,7 @@ Most lightweight functionality uses base R and `stats`. Some features require ad
 install.packages(c("igraph", "ggplot2", "Matrix"))
 ```
 
-The SDP engine requires `sdpt3r`. The spectral engine can be used for exploratory computation when SDP dependencies are unavailable, but the paper algorithms and approximation certificate use `engine = "sdp"`:
+The package can be installed and used without an SDP solver. The spectral engine provides a lightweight approximation for exploratory computation. It evaluates the same squared-bias objective after rounding, but it does not solve the semidefinite relaxation and does not provide the SDP lower bound or approximation certificate:
 
 ```r
 fit <- causal_clustering_algorithm1(
@@ -45,12 +45,38 @@ fit <- causal_clustering_algorithm1(
   xi = 1,
   min_k = 2,
   max_k = 20,
+  engine = "spectral",
+  methods = "kmeans",
+  seed = 123
+)
+```
+
+The SDP engine implements the paper-style semidefinite relaxation and, when available, returns the SDP-based approximation certificate. It requires the optional package `sdpt3r`.
+
+`sdpt3r` is not currently available from ordinary CRAN installation. Install it from GitHub with:
+
+```r
+install.packages("remotes")
+remotes::install_github("AdamRahman/sdpt3r")
+```
+
+After installing `sdpt3r`, use the SDP engine with:
+
+```r
+fit_sdp <- causal_clustering_algorithm1(
+  W = W,
+  xi = 1,
+  min_k = 2,
+  max_k = 20,
   engine = "sdp",
-  methods = "kmeans"
+  methods = "kmeans",
+  seed = 123
 )
 ```
 
 ## Quick start
+
+The following example uses the spectral approximation engine and does not require an SDP solver.
 
 ```r
 library(causalClust)
@@ -66,13 +92,13 @@ sim <- simulate_network_data(
 
 W <- sim$W
 
-# Run Algorithm 1 for one calibration value
+# Run the causal clustering search for one calibration value
 fit <- causal_clustering_algorithm1(
   W = W,
   xi = 1,
   min_k = 2,
   max_k = 20,
-  engine = "sdp",
+  engine = "spectral",
   objective_type = "squared",
   methods = "kmeans",
   seed = 123
@@ -84,9 +110,9 @@ head(fit$clusters)
 fit$components
 ```
 
-## Approximation certificate
+## SDP engine and approximation certificate
 
-When SDP dependencies are available, the returned object includes the SDP lower-bound certificate:
+When `sdpt3r` is available, use the SDP engine to run the implementation corresponding to the paper's semidefinite relaxation. The returned object includes the SDP lower bound and the approximation certificate when these quantities are available.
 
 ```r
 fit_sdp <- causal_clustering_algorithm1(
@@ -104,8 +130,6 @@ fit_sdp$Gamma_n
 fit_sdp$certificate_valid
 ```
 
-`Gamma_n` is the approximation certificate returned when the SDP lower bound is available.
-
 With the SDP engine, the `k_constraint` argument controls how the relaxation is solved:
 
 - `k_constraint = FALSE`: solve one SDP relaxation without optional K-specific constraints and round it for each candidate `K`;
@@ -113,7 +137,7 @@ With the SDP engine, the `k_constraint` argument controls how the relaxation is 
 
 ## Causal clustering over a calibration range
 
-Use `adaptive_causal_clustering()` or `causal_clustering_algorithm2()` when the spillover calibration is uncertain. The endpoints of `xi_range` must be positive.
+Use `adaptive_causal_clustering()` or `causal_clustering_algorithm2()` when the spillover calibration is uncertain. These functions use the SDP engine and therefore require `sdpt3r`. The endpoints of `xi_range` must be positive.
 
 ```r
 fit_adaptive <- adaptive_causal_clustering(
@@ -131,13 +155,45 @@ fit_adaptive$objective
 fit_adaptive$components
 ```
 
+## Objective components
+
+For a clustering `clusters`, the package computes the objective
+
+```text
+xi * variance + bias^2
+```
+
+where `variance` is the normalized sum of squared cluster sizes and `bias` is the average fraction of neighbors assigned to different clusters.
+
+```r
+W_small <- matrix(
+  c(
+    0, 1, 1, 0,
+    1, 0, 0, 1,
+    1, 0, 0, 1,
+    0, 1, 1, 0
+  ),
+  nrow = 4,
+  byrow = TRUE
+)
+
+clusters <- c(1, 1, 2, 2)
+
+components <- clustering_objective_components(W_small, clusters)
+objective <- compute_causal_clustering_objective(W_small, xi = 1, clusters = clusters)
+
+components
+objective
+all.equal(objective, components$variance + components$bias^2)
+```
+
 ## Core functions
 
 ### Clustering algorithms
 
 | Function | Purpose |
 |---|---|
-| `causal_clustering_algorithm1()` | Main causal clustering algorithm for one calibration value. |
+| `causal_clustering_algorithm1()` | Causal clustering algorithm for one calibration value. |
 | `causal_clustering_algorithm2()` | Endpoint-regret causal clustering over a calibration range. |
 | `adaptive_causal_clustering()` | User-facing wrapper for Algorithm 2. |
 | `cluster_epsilon_net()` | Epsilon-net baseline clustering. |
@@ -185,26 +241,6 @@ The main input is an adjacency matrix `W`:
 - diagonal entries are set to zero internally;
 - if `W` is not exactly symmetric, it is symmetrized internally as `(W + t(W)) / 2`.
 
-Example:
-
-```r
-W <- matrix(
-  c(
-    0, 1, 1, 0,
-    1, 0, 0, 1,
-    1, 0, 0, 1,
-    0, 1, 1, 0
-  ),
-  nrow = 4,
-  byrow = TRUE
-)
-
-clusters <- c(1, 1, 2, 2)
-
-clustering_objective_components(W, clusters)
-compute_causal_clustering_objective(W, xi = 1, clusters = clusters)
-```
-
 ## Calibration parameters
 
 The main tuning parameter is `xi`. In the notation of the causal clustering paper,
@@ -251,6 +287,8 @@ c(
 
 ## Example: comparing clustering methods
 
+The following example uses the spectral engine so that it can run without an SDP solver.
+
 ```r
 out <- run_single_network(
   seed = 123,
@@ -263,7 +301,7 @@ out <- run_single_network(
   min_k = 2,
   max_k = 20,
   include_louvain = TRUE,
-  engine = "sdp",
+  engine = "spectral",
   objective_type = "squared",
   methods = "kmeans"
 )
