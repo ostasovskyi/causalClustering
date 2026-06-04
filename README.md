@@ -18,11 +18,20 @@ Viviano, D., Lei, L., Imbens, G., Karrer, B., Schrijvers, O., & Shi, L. (2026). 
 
 ## Installation
 
-TODO
+Install the development version from GitHub with:
 
-## Optional dependencies
+```r
+install.packages("remotes")
+remotes::install_github("ostasovskyi/causalClustering")
+```
 
-Most lightweight functionality uses base R and `stats`. Some features require additional packages:
+Load the package with:
+
+```r
+library(causalClust)
+```
+
+Most lightweight functionality uses base R and `stats`. Some features require additional packages for graph algorithms, plotting, and sparse matrix operations:
 
 ```r
 install.packages(c("igraph", "ggplot2", "Matrix"))
@@ -31,7 +40,14 @@ install.packages(c("igraph", "ggplot2", "Matrix"))
 The SDP engine requires `sdpt3r`. The spectral engine can be used for exploratory computation when SDP dependencies are unavailable, but the paper algorithms and approximation certificate use `engine = "sdp"`:
 
 ```r
-engine = "sdp"
+fit <- causal_clustering_algorithm1(
+  W = W,
+  xi = 1,
+  min_k = 2,
+  max_k = 20,
+  engine = "sdp",
+  methods = "kmeans"
+)
 ```
 
 ## Quick start
@@ -58,7 +74,7 @@ fit <- causal_clustering_algorithm1(
   max_k = 20,
   engine = "sdp",
   objective_type = "squared",
-  methods = c("kmeans"),
+  methods = "kmeans",
   seed = 123
 )
 
@@ -80,7 +96,7 @@ fit_sdp <- causal_clustering_algorithm1(
   max_k = 20,
   engine = "sdp",
   objective_type = "squared",
-  methods = c("kmeans"),
+  methods = "kmeans",
   seed = 123
 )
 
@@ -89,6 +105,11 @@ fit_sdp$certificate_valid
 ```
 
 `Gamma_n` is the approximation certificate returned when the SDP lower bound is available.
+
+With the SDP engine, the `k_constraint` argument controls how the relaxation is solved:
+
+- `k_constraint = FALSE`: solve one SDP relaxation without optional K-specific constraints and round it for each candidate `K`;
+- `k_constraint = TRUE`: solve a separate K-specific SDP relaxation for each candidate `K`, including optional size and box constraints.
 
 ## Causal clustering over a calibration range
 
@@ -101,7 +122,7 @@ fit_adaptive <- adaptive_causal_clustering(
   min_k = 2,
   max_k = 20,
   engine = "sdp",
-  methods = c("kmeans"),
+  methods = "kmeans",
   seed = 123
 )
 
@@ -244,7 +265,7 @@ out <- run_single_network(
   include_louvain = TRUE,
   engine = "sdp",
   objective_type = "squared",
-  methods = c("kmeans")
+  methods = "kmeans"
 )
 
 head(out$results)
