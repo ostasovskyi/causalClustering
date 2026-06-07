@@ -15,11 +15,11 @@ causal_clustering_algorithm2(
   n_eig = NULL,
   seed = NULL,
   engine = "sdp",
-  methods = c("kmeans"),
+  methods = available_discretization_methods(),
   include_bernoulli = FALSE,
   k_constraint = FALSE,
   gamma_bar = 10,
-  try_sign_flip = FALSE,
+  try_sign_flip = TRUE,
   keep_sdp_solutions = FALSE
 )
 }
@@ -45,7 +45,7 @@ causal_clustering_algorithm2(
 
 \item{engine}{Must be \code{"sdp"} for Algorithm 2.}
 
-\item{methods}{Discretization methods.}
+\item{methods}{Character vector of rounding/discretization methods. All requested methods are run and the rounded candidate with the smallest realized objective is selected.}
 
 \item{include_bernoulli}{Whether to include the all-singleton design.}
 
@@ -53,7 +53,7 @@ causal_clustering_algorithm2(
 
 \item{gamma_bar}{Cluster-size constant for optional filtering.}
 
-\item{try_sign_flip}{Whether to try rounding both X and -X.}
+\item{try_sign_flip}{Whether to try rounding both X and -X. This is useful when comparing multiple discretizations after a relaxation step.}
 
 \item{keep_sdp_solutions}{Whether to return full SDP solution objects.}
 }

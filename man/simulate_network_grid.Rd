@@ -7,7 +7,7 @@
 simulate_network_grid(
   params_sim_networks,
   engine = c("sdp", "spectral"),
-  methods = c("kmeans"),
+  methods = available_discretization_methods(),
   objective_type = "squared",
   k_constraint = FALSE,
   gamma_bar = 10,
@@ -20,7 +20,7 @@ simulate_network_grid(
 
 \item{engine}{Search engine for the causal clustering step.}
 
-\item{methods}{Discretization methods used after the relaxation step.}
+\item{methods}{Discretization methods used after the relaxation step. All requested methods are tried and the lowest realized objective is selected.}
 
 \item{objective_type}{Must be \code{"squared"}.}
 

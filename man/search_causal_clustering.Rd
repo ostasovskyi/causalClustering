@@ -12,13 +12,13 @@ search_causal_clustering(
   n_eig = NULL,
   seed = NULL,
   engine = c("sdp", "spectral"),
-  methods = c("kmeans"),
+  methods = available_discretization_methods(),
   include_bernoulli = FALSE,
   objective_type = "squared",
   k_constraint = FALSE,
   gamma_bar = 10,
   box_constraints = TRUE,
-  try_sign_flip = FALSE,
+  try_sign_flip = TRUE,
   keep_sdp_solutions = FALSE
 )
 }
@@ -37,7 +37,7 @@ search_causal_clustering(
 
 \item{engine}{\code{"sdp"} is the SDP relaxation; \code{"spectral"} is a heuristic.}
 
-\item{methods}{Discretization methods.}
+\item{methods}{Character vector of rounding/discretization methods. All requested methods are run and the rounded candidate with the smallest realized objective is selected.}
 
 \item{include_bernoulli}{Whether to include the all-singleton design.}
 
@@ -49,7 +49,7 @@ search_causal_clustering(
 
 \item{box_constraints}{Whether to impose \verb{0 <= X_ij <= 1} in the K-specific SDP.}
 
-\item{try_sign_flip}{Whether to try rounding both X and -X.}
+\item{try_sign_flip}{Whether to try rounding both X and -X. This is useful when comparing multiple discretizations after a relaxation step.}
 
 \item{keep_sdp_solutions}{Whether to return full SDP objects.}
 }

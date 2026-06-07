@@ -9,7 +9,7 @@
 #' @param include_louvain Logical; whether to compute the Louvain baseline.
 #' @param engine Search engine for the causal clustering step. Use `"sdp"` for
 #'   the semidefinite relaxation and `"spectral"` for a spectral heuristic.
-#' @param methods Discretization methods used after the relaxation step.
+#' @param methods Discretization methods used after the relaxation step. All requested methods are tried and the lowest realized objective is selected.
 #' @param objective_type Must be `"squared"`.
 #' @param k_constraint Logical; passed to `search_causal_clustering()`.
 #' @param gamma_bar Upper cluster-size multiplier used when `k_constraint = TRUE`.
@@ -26,7 +26,7 @@ run_single_network <- function(seed,
                                max_k = NULL,
                                include_louvain = FALSE,
                                engine = c("sdp", "spectral"),
-                               methods = c("kmeans"),
+                               methods = available_discretization_methods(),
                                objective_type = "squared",
                                k_constraint = FALSE,
                                gamma_bar = 10,
@@ -140,7 +140,7 @@ run_single_network <- function(seed,
 #' @param params_sim_networks A list with entries `n`, `type_graph`, `n_sim`,
 #'   `xi_seq`, and optionally `neighb`, `min_k`, `max_k`.
 #' @param engine Search engine for the causal clustering step.
-#' @param methods Discretization methods used after the relaxation step.
+#' @param methods Discretization methods used after the relaxation step. All requested methods are tried and the lowest realized objective is selected.
 #' @param objective_type Must be `"squared"`.
 #' @param k_constraint Logical; passed to `run_single_network()`.
 #' @param gamma_bar Upper cluster-size multiplier used when `k_constraint = TRUE`.
@@ -150,7 +150,7 @@ run_single_network <- function(seed,
 #' @export
 simulate_network_grid <- function(params_sim_networks,
                                   engine = c("sdp", "spectral"),
-                                  methods = c("kmeans"),
+                                  methods = available_discretization_methods(),
                                   objective_type = "squared",
                                   k_constraint = FALSE,
                                   gamma_bar = 10,

@@ -13,7 +13,7 @@ run_single_network(
   max_k = NULL,
   include_louvain = FALSE,
   engine = c("sdp", "spectral"),
-  methods = c("kmeans"),
+  methods = available_discretization_methods(),
   objective_type = "squared",
   k_constraint = FALSE,
   gamma_bar = 10,
@@ -38,7 +38,7 @@ run_single_network(
 \item{engine}{Search engine for the causal clustering step. Use \code{"sdp"} for
 the semidefinite relaxation and \code{"spectral"} for a spectral heuristic.}
 
-\item{methods}{Discretization methods used after the relaxation step.}
+\item{methods}{Discretization methods used after the relaxation step. All requested methods are tried and the lowest realized objective is selected.}
 
 \item{objective_type}{Must be \code{"squared"}.}
 

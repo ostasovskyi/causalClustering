@@ -12,13 +12,13 @@ causal_clustering_algorithm1(
   n_eig = NULL,
   seed = NULL,
   engine = c("sdp", "spectral"),
-  methods = c("kmeans"),
+  methods = available_discretization_methods(),
   include_bernoulli = FALSE,
   objective_type = "squared",
   k_constraint = FALSE,
   gamma_bar = 10,
   box_constraints = TRUE,
-  try_sign_flip = FALSE,
+  try_sign_flip = TRUE,
   keep_search_matrices = FALSE,
   keep_sdp_solutions = FALSE,
   xi_grid = NULL,
@@ -44,7 +44,7 @@ the number of eigenvectors equals the candidate K.}
 \code{"spectral"} for a spectral heuristic.}
 
 \item{methods}{Character vector of rounding/discretization methods. See
-\code{\link[=available_discretization_methods]{available_discretization_methods()}}.}
+\code{\link[=available_discretization_methods]{available_discretization_methods()}}. All requested methods are run and the rounded candidate with the smallest realized objective is selected.}
 
 \item{include_bernoulli}{Logical; if \code{TRUE}, also compare against the
 all-singleton Bernoulli design. This option is outside the approximation

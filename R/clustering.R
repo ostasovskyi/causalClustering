@@ -994,13 +994,13 @@ best_search_clustering <- function(W,
 #' @param n_eig Optional number of eigenvectors used for rounding.
 #' @param seed Optional k-means seed.
 #' @param engine `"sdp"` is the SDP relaxation; `"spectral"` is a heuristic.
-#' @param methods Discretization methods.
+#' @param methods Character vector of rounding/discretization methods. All requested methods are run and the rounded candidate with the smallest realized objective is selected.
 #' @param include_bernoulli Whether to include the all-singleton design.
 #' @param objective_type Must be `"squared"` for Equation (9).
 #' @param k_constraint Boolean from Algorithm 1.
 #' @param gamma_bar Cluster-size constant for optional constraints.
 #' @param box_constraints Whether to impose `0 <= X_ij <= 1` in the K-specific SDP.
-#' @param try_sign_flip Whether to try rounding both X and -X.
+#' @param try_sign_flip Whether to try rounding both X and -X. This is useful when comparing multiple discretizations after a relaxation step.
 #' @param keep_sdp_solutions Whether to return full SDP objects.
 #'
 #' @return List containing the selected clustering, candidate objectives, SDP
@@ -1013,13 +1013,13 @@ search_causal_clustering <- function(W,
                                      n_eig = NULL,
                                      seed = NULL,
                                      engine = c("sdp", "spectral"),
-                                     methods = c("kmeans"),
+                                     methods = available_discretization_methods(),
                                      include_bernoulli = FALSE,
                                      objective_type = "squared",
                                      k_constraint = FALSE,
                                      gamma_bar = 10,
                                      box_constraints = TRUE,
-                                     try_sign_flip = FALSE,
+                                     try_sign_flip = TRUE,
                                      keep_sdp_solutions = FALSE) {
   W <- validate_adjacency_matrix(W, binary = TRUE)
   xi <- validate_xi(xi)
@@ -1124,6 +1124,20 @@ search_causal_clustering <- function(W,
 
   best_index <- which.min(all_objectives)
   best_clusters <- if (best_index <= length(k_grid)) solutions[[best_index]]$clusters else bernoulli_clusters
+  selected_solution <- if (best_index <= length(k_grid)) solutions[[best_index]] else NULL
+  selected_method <- if (!is.null(selected_solution) && !is.null(selected_solution$method)) {
+    selected_solution$method
+  } else if (best_index > length(k_grid)) {
+    "bernoulli"
+  } else {
+    NA_character_
+  }
+  selected_candidate_objectives <- if (!is.null(selected_solution) &&
+      !is.null(selected_solution$candidate_objectives)) {
+    selected_solution$candidate_objectives
+  } else {
+    NULL
+  }
 
   lower_bound <- suppressWarnings(min(sdp_lower_bounds, na.rm = TRUE))
   if (!is.finite(lower_bound)) lower_bound <- NA_real_
@@ -1141,6 +1155,8 @@ search_causal_clustering <- function(W,
     k_grid = k_grid,
     best_index = best_index,
     selected_k = if (best_index <= length(k_grid)) k_grid[best_index] else n,
+    selected_method = selected_method,
+    selected_candidate_objectives = selected_candidate_objectives,
     objective = unname(all_objectives[best_index]),
     objective_type = objective_type,
     engine = engine,
@@ -1178,7 +1194,7 @@ search_causal_clustering <- function(W,
 #' @param engine Optimization engine. Use `"sdp"` for the semidefinite relaxation and
 #'   `"spectral"` for a spectral heuristic.
 #' @param methods Character vector of rounding/discretization methods. See
-#'   [available_discretization_methods()].
+#'   [available_discretization_methods()]. All requested methods are run and the rounded candidate with the smallest realized objective is selected.
 #' @param include_bernoulli Logical; if `TRUE`, also compare against the
 #'   all-singleton Bernoulli design. This option is outside the approximation
 #'   certificate in Algorithm 1.
@@ -1209,13 +1225,13 @@ causal_clustering_algorithm1 <- function(W,
                                          n_eig = NULL,
                                          seed = NULL,
                                          engine = c("sdp", "spectral"),
-                                         methods = c("kmeans"),
+                                         methods = available_discretization_methods(),
                                          include_bernoulli = FALSE,
                                          objective_type = "squared",
                                          k_constraint = FALSE,
                                          gamma_bar = 10,
                                          box_constraints = TRUE,
-                                         try_sign_flip = FALSE,
+                                         try_sign_flip = TRUE,
                                          keep_search_matrices = FALSE,
                                          keep_sdp_solutions = FALSE,
                                          xi_grid = NULL,
@@ -1270,6 +1286,8 @@ causal_clustering_algorithm1 <- function(W,
     clusters = sol$clusters,
     xi = xi,
     selected_k = sol$selected_k,
+    selected_method = sol$selected_method,
+    selected_candidate_objectives = sol$selected_candidate_objectives,
     best_index = sol$best_index,
     objective = objective,
     objective_type = objective_type,
@@ -1323,11 +1341,11 @@ canonicalize_clusters <- function(clusters) {
 #' @param n_eig Optional number of eigenvectors used for rounding.
 #' @param seed Optional k-means seed.
 #' @param engine Must be `"sdp"` for Algorithm 2.
-#' @param methods Discretization methods.
+#' @param methods Character vector of rounding/discretization methods. All requested methods are run and the rounded candidate with the smallest realized objective is selected.
 #' @param include_bernoulli Whether to include the all-singleton design.
 #' @param k_constraint Whether to filter rounded candidates by the size constraint.
 #' @param gamma_bar Cluster-size constant for optional filtering.
-#' @param try_sign_flip Whether to try rounding both X and -X.
+#' @param try_sign_flip Whether to try rounding both X and -X. This is useful when comparing multiple discretizations after a relaxation step.
 #' @param keep_sdp_solutions Whether to return full SDP solution objects.
 #'
 #' @return List containing the selected clustering, endpoint lower bounds, and
@@ -1343,11 +1361,11 @@ causal_clustering_algorithm2 <- function(W,
                                          n_eig = NULL,
                                          seed = NULL,
                                          engine = "sdp",
-                                         methods = c("kmeans"),
+                                         methods = available_discretization_methods(),
                                          include_bernoulli = FALSE,
                                          k_constraint = FALSE,
                                          gamma_bar = 10,
-                                         try_sign_flip = FALSE,
+                                         try_sign_flip = TRUE,
                                          keep_sdp_solutions = FALSE) {
   W <- validate_adjacency_matrix(W, binary = TRUE)
   engine <- match.arg(engine)
@@ -1474,11 +1492,27 @@ causal_clustering_algorithm2 <- function(W,
 
   best_index <- which.min(all_rho)
   best_clusters <- if (best_index <= length(k_grid)) solutions[[best_index]]$clusters else bernoulli_clusters
+  selected_solution <- if (best_index <= length(k_grid)) solutions[[best_index]] else NULL
+  selected_method <- if (!is.null(selected_solution) && !is.null(selected_solution$method)) {
+    selected_solution$method
+  } else if (best_index > length(k_grid)) {
+    "bernoulli"
+  } else {
+    NA_character_
+  }
+  selected_candidate_summary <- if (!is.null(selected_solution) &&
+      !is.null(selected_solution$candidate_summary)) {
+    selected_solution$candidate_summary
+  } else {
+    NULL
+  }
 
   list(
     clusters = best_clusters,
     selected_k = if (best_index <= length(k_grid)) k_grid[best_index] else n,
     selected_index = best_index,
+    selected_method = selected_method,
+    selected_candidate_summary = selected_candidate_summary,
     objective = unname(all_rho[best_index]),
     rho_values = all_rho,
     xi_lower = xi_lower,
@@ -1501,6 +1535,185 @@ causal_clustering_algorithm2 <- function(W,
     engine = engine,
     objective_type = "squared"
   )
+}
+
+
+# Unified public interface --------------------------------------------------
+
+#' Causal clustering algorithm
+#'
+#' @description
+#' Unified interface for the causal clustering algorithms. Supply exactly one
+#' calibration input. A scalar `xi` or scalar `calibration` calls Algorithm 1
+#' for a fixed calibration. A grid or range of `xi` or `calibration` values
+#' calls Algorithm 2 and uses only the endpoint range for the endpoint-regret
+#' criterion.
+#'
+#' @param W Symmetric binary adjacency matrix.
+#' @param xi Optional scalar or grid of `xi = (lambda * phibar_n^2 / psibar)^(-1)` values.
+#' @param calibration Optional scalar or grid of `lambda * phibar_n^2 / psibar` values.
+#' @param xi_grid Optional positive grid of `xi` values.
+#' @param xi_range Optional length-two positive range of `xi` values.
+#' @param calibration_grid Optional positive grid of `lambda * phibar_n^2 / psibar` values.
+#' @param calibration_range Optional length-two positive range of `lambda * phibar_n^2 / psibar` values.
+#' @param min_k Minimum number of clusters to consider.
+#' @param max_k Maximum number of clusters to consider.
+#' @param n_eig Optional number of eigenvectors used for rounding. If `NULL`,
+#'   the number of eigenvectors equals the candidate K.
+#' @param seed Optional seed used by k-means rounding.
+#' @param engine Optimization engine. Use `"sdp"` for the semidefinite relaxation and
+#'   `"spectral"` for a spectral heuristic. Calibration grids/ranges require `"sdp"`.
+#' @param methods Character vector of rounding/discretization methods. See
+#'   [available_discretization_methods()]. All requested methods are run and
+#'   the rounded candidate with the smallest realized objective is selected.
+#' @param include_bernoulli Logical; if `TRUE`, also compare against the
+#'   all-singleton Bernoulli design.
+#' @param objective_type Must be `"squared"`.
+#' @param k_constraint Logical Boolean from Algorithm 1. For Algorithm 2 it
+#'   filters rounded candidates by the cluster-size constraint.
+#' @param gamma_bar Upper cluster-size multiplier used by optional constraints or filtering.
+#' @param box_constraints Logical; whether to impose optional `0 <= X_ij <= 1`
+#'   constraints when Algorithm 1 is run with `k_constraint = TRUE`.
+#' @param try_sign_flip Whether to try rounding both X and -X.
+#' @param keep_search_matrices Logical; if `TRUE`, keep the relaxation matrix in
+#'   Algorithm 1 results.
+#' @param keep_sdp_solutions Logical; if `TRUE`, keep raw SDP solution objects.
+#'
+#' @return A list. For scalar calibrations it contains the Algorithm 1 output,
+#'   including `clusters`, `selected_k`, `selected_method`, `objective`,
+#'   `components`, SDP lower bounds, and `Gamma_n` when available. For grids or
+#'   ranges it contains the Algorithm 2 output, including `clusters`,
+#'   `selected_k`, `selected_method`, endpoint lower bounds, endpoint regret
+#'   values, and objective components.
+#' @export
+causal_clustering_algorithm <- function(W,
+                                        xi = NULL,
+                                        calibration = NULL,
+                                        xi_grid = NULL,
+                                        xi_range = NULL,
+                                        calibration_grid = NULL,
+                                        calibration_range = NULL,
+                                        min_k = 2,
+                                        max_k = floor(nrow(W) / 2),
+                                        n_eig = NULL,
+                                        seed = NULL,
+                                        engine = c("sdp", "spectral"),
+                                        methods = available_discretization_methods(),
+                                        include_bernoulli = FALSE,
+                                        objective_type = "squared",
+                                        k_constraint = FALSE,
+                                        gamma_bar = 10,
+                                        box_constraints = TRUE,
+                                        try_sign_flip = TRUE,
+                                        keep_search_matrices = FALSE,
+                                        keep_sdp_solutions = FALSE) {
+  W <- validate_adjacency_matrix(W, binary = TRUE)
+  engine <- match.arg(engine)
+  methods <- standardize_discretization_methods(methods)
+  objective_type <- validate_objective_type(objective_type)
+
+  supplied <- c(
+    xi = !is.null(xi),
+    calibration = !is.null(calibration),
+    xi_grid = !is.null(xi_grid),
+    xi_range = !is.null(xi_range),
+    calibration_grid = !is.null(calibration_grid),
+    calibration_range = !is.null(calibration_range)
+  )
+
+  if (sum(supplied) != 1L) {
+    stop(
+      "Supply exactly one of `xi`, `calibration`, `xi_grid`, `xi_range`, ",
+      "`calibration_grid`, or `calibration_range`.",
+      call. = FALSE
+    )
+  }
+
+  fixed_call <- function(xi_value = NULL, calibration_value = NULL) {
+    out <- causal_clustering_algorithm1(
+      W = W,
+      xi = xi_value,
+      calibration = calibration_value,
+      min_k = min_k,
+      max_k = max_k,
+      n_eig = n_eig,
+      seed = seed,
+      engine = engine,
+      methods = methods,
+      include_bernoulli = include_bernoulli,
+      objective_type = objective_type,
+      k_constraint = k_constraint,
+      gamma_bar = gamma_bar,
+      box_constraints = box_constraints,
+      try_sign_flip = try_sign_flip,
+      keep_search_matrices = keep_search_matrices,
+      keep_sdp_solutions = keep_sdp_solutions
+    )
+    out$algorithm <- "algorithm1_fixed_calibration"
+    out
+  }
+
+  range_call <- function(xi_range_value = NULL, calibration_range_value = NULL) {
+    if (!identical(engine, "sdp")) {
+      stop("Calibration grids/ranges use Algorithm 2 and require `engine = 'sdp'`.", call. = FALSE)
+    }
+    out <- causal_clustering_algorithm2(
+      W = W,
+      xi_range = xi_range_value,
+      calibration_range = calibration_range_value,
+      min_k = min_k,
+      max_k = max_k,
+      n_eig = n_eig,
+      seed = seed,
+      engine = engine,
+      methods = methods,
+      include_bernoulli = include_bernoulli,
+      k_constraint = k_constraint,
+      gamma_bar = gamma_bar,
+      try_sign_flip = try_sign_flip,
+      keep_sdp_solutions = keep_sdp_solutions
+    )
+    out$algorithm <- "algorithm2_endpoint_regret"
+    out
+  }
+
+  if (!is.null(xi)) {
+    xi <- as.numeric(xi)
+    if (length(xi) == 1L) return(fixed_call(xi_value = xi))
+    xi <- validate_positive_grid(xi, "xi")
+    return(range_call(xi_range_value = range(xi)))
+  }
+
+  if (!is.null(calibration)) {
+    calibration <- as.numeric(calibration)
+    if (length(calibration) == 1L) return(fixed_call(calibration_value = calibration))
+    calibration <- validate_positive_grid(calibration, "calibration")
+    return(range_call(calibration_range_value = range(calibration)))
+  }
+
+  if (!is.null(xi_grid)) {
+    xi_grid <- validate_positive_grid(xi_grid, "xi_grid")
+    if (length(xi_grid) == 1L) return(fixed_call(xi_value = xi_grid))
+    return(range_call(xi_range_value = range(xi_grid)))
+  }
+
+  if (!is.null(xi_range)) {
+    xi_range <- validate_positive_grid(xi_range, "xi_range")
+    if (length(xi_range) != 2L) stop("`xi_range` must be length two.", call. = FALSE)
+    return(range_call(xi_range_value = range(xi_range)))
+  }
+
+  if (!is.null(calibration_grid)) {
+    calibration_grid <- validate_positive_grid(calibration_grid, "calibration_grid")
+    if (length(calibration_grid) == 1L) return(fixed_call(calibration_value = calibration_grid))
+    return(range_call(calibration_range_value = range(calibration_grid)))
+  }
+
+  calibration_range <- validate_positive_grid(calibration_range, "calibration_range")
+  if (length(calibration_range) != 2L) {
+    stop("`calibration_range` must be length two.", call. = FALSE)
+  }
+  range_call(calibration_range_value = range(calibration_range))
 }
 
 #' Adaptive causal clustering
@@ -1547,12 +1760,12 @@ adaptive_causal_clustering <- function(W,
                                        n_eig = NULL,
                                        seed = NULL,
                                        engine = "sdp",
-                                       methods = c("kmeans"),
+                                       methods = available_discretization_methods(),
                                        include_bernoulli = FALSE,
                                        objective_type = "squared",
                                        k_constraint = FALSE,
                                        gamma_bar = 10,
-                                       try_sign_flip = FALSE,
+                                       try_sign_flip = TRUE,
                                        keep_sdp_solutions = FALSE) {
   engine <- match.arg(engine)
   objective_type <- validate_objective_type(objective_type)

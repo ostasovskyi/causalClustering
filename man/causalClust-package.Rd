@@ -7,8 +7,10 @@
 \title{causalClust: causal clustering for network experiments}
 \description{
 Tools for constructing and evaluating cluster randomized designs under
-network interference. The main design functions are
-\code{\link[=causal_clustering_algorithm1]{causal_clustering_algorithm1()}} and \code{\link[=causal_clustering_algorithm2]{causal_clustering_algorithm2()}}.
+network interference. The main design function is
+\code{\link[=causal_clustering_algorithm]{causal_clustering_algorithm()}}, which dispatches to the fixed-calibration
+or endpoint-regret algorithm depending on whether the calibration input is
+scalar or a grid/range.
 }
 \author{
 \strong{Maintainer}: Oleksandr Stasovskyi \email{ostasovskyi@college.harvard.edu} [contributor]

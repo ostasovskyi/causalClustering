@@ -15,12 +15,12 @@ adaptive_causal_clustering(
   n_eig = NULL,
   seed = NULL,
   engine = "sdp",
-  methods = c("kmeans"),
+  methods = available_discretization_methods(),
   include_bernoulli = FALSE,
   objective_type = "squared",
   k_constraint = FALSE,
   gamma_bar = 10,
-  try_sign_flip = FALSE,
+  try_sign_flip = TRUE,
   keep_sdp_solutions = FALSE
 )
 }

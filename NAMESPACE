@@ -3,6 +3,7 @@
 export(adaptive_causal_clustering)
 export(assign_cluster_treatment)
 export(available_discretization_methods)
+export(causal_clustering_algorithm)
 export(causal_clustering_algorithm1)
 export(causal_clustering_algorithm2)
 export(cluster_epsilon_net)
