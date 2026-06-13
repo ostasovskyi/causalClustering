@@ -37,7 +37,7 @@ Most lightweight functionality uses base R and `stats`. Some features require ad
 install.packages(c("igraph", "ggplot2", "Matrix"))
 ```
 
-The recommended engine for the main causal clustering algorithm is the SDP engine. It implements the paper-style semidefinite relaxation and, when available, returns the SDP lower bound and the approximation certificate. The SDP engine requires the optional package `sdpt3r`.
+The recommended engine for the main causal clustering algorithm is the SDP engine. It implements the paper-style semidefinite relaxation and, when available, returns the SDP lower bound and the approximation certificate. The SDP engine requires the package `sdpt3r`.
 
 If `install.packages("sdpt3r")` is unavailable in your R setup, install `sdpt3r` from GitHub:
 
@@ -48,7 +48,7 @@ remotes::install_github("AdamRahman/sdpt3r")
 
 On Windows, installing `sdpt3r` from source may require Rtools.
 
-## Quick start with the SDP engine
+## Quick start
 
 This example uses the SDP engine. Install `sdpt3r` first, as shown above.
 
@@ -91,7 +91,7 @@ head(fit$clusters)
 
 The returned `selected_method` reports which discretization method was selected after rounding. The returned `objective` is the realized value of the design criterion for the selected clustering.
 
-## Calibration grids and Algorithm 2
+## Calibration grids
 
 Use the same function when the calibration is uncertain. If `calibration`, `xi`, `calibration_grid`, or `xi_grid` contains more than one value, or if a range is supplied, `causal_clustering_algorithm()` automatically runs the endpoint-regret version of the algorithm.
 
@@ -153,7 +153,8 @@ all.equal(objective, components$variance + components$bias^2)
 
 ### `causal_clustering_algorithm()`
 
-Main user-facing function for causal clustering. It replaces the need to choose manually between the fixed-calibration and calibration-range functions.
+Main function for selecting experimental clusters from a network. The function accepts either a single calibration value or a calibration grid/range. With a single value, it returns clusters optimized for that fixed tradeoff between variance and spillover bias. With a grid or range, it returns clusters chosen to perform well across the specified calibration interval.
+
 
 | Argument group | Inputs |
 |---|---|
@@ -284,7 +285,7 @@ c(
 
 When more than one method is supplied, each method is applied to the relaxation output for each candidate K. The package then computes the realized design objective for every rounded candidate and selects the one with the smallest objective.
 
-## SDP engine and approximation certificate
+## SDP engine diagnostics
 
 With `engine = "sdp"`, the returned object includes the SDP lower bound and, when applicable, the approximation certificate:
 
